@@ -30,6 +30,13 @@ class GameOfLife {
     this.animationId = null;
     this.interval = 200; // ms
 
+    // Viewport (zoom & pan)
+    this.zoom = 1;
+    this.panX = 0;
+    this.panY = 0;
+    this._isPanning = false;
+    this._panStart = null;
+
     // Mouse drag state for cell toggling
     this._dragValue = null; // true = activate, false = deactivate
 
@@ -144,6 +151,10 @@ class GameOfLife {
     // Re-apply CSS so the attribute change doesn't push the element wider
     this.canvas.style.width  = '100%';
     this.canvas.style.height = '100%';
+    // Reset viewport on resize
+    this.zoom = 1;
+    this.panX = 0;
+    this.panY = 0;
     this._render();
   }
 
@@ -152,6 +163,11 @@ class GameOfLife {
     const { ctx, canvas, cols, rows } = this;
     const cellW = canvas.width  / cols;
     const cellH = canvas.height / rows;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.save();
+    ctx.translate(this.panX, this.panY);
+    ctx.scale(this.zoom, this.zoom);
 
     // Background (dead cells)
     ctx.fillStyle = this.colorDead;
@@ -187,6 +203,8 @@ class GameOfLife {
       ctx.lineTo(canvas.width, py);
     }
     ctx.stroke();
+
+    ctx.restore();
   }
 
   // ─── Stats ───────────────────────────────────────────────────────────────────
@@ -209,8 +227,14 @@ class GameOfLife {
     const rect = this.canvas.getBoundingClientRect();
     const scaleX = this.canvas.width  / rect.width;
     const scaleY = this.canvas.height / rect.height;
-    const x = Math.floor(((px - rect.left) * scaleX) / (this.canvas.width  / this.cols));
-    const y = Math.floor(((py - rect.top)  * scaleY) / (this.canvas.height / this.rows));
+    // Canvas-space pixel coords
+    const cpx = (px - rect.left) * scaleX;
+    const cpy = (py - rect.top)  * scaleY;
+    // Undo pan and zoom to get world (unscaled canvas) coords
+    const worldX = (cpx - this.panX) / this.zoom;
+    const worldY = (cpy - this.panY) / this.zoom;
+    const x = Math.floor(worldX / (this.canvas.width  / this.cols));
+    const y = Math.floor(worldY / (this.canvas.height / this.rows));
     return { x, y };
   }
 
@@ -299,16 +323,59 @@ class GameOfLife {
   // ─── Event binding ───────────────────────────────────────────────────────────
 
   _bindEvents() {
-    // Canvas – click / drag to toggle cells
+    // Canvas – click / drag to toggle cells; middle-mouse or Ctrl+drag to pan
     this.canvas.addEventListener('mousedown', (e) => {
-      this._dragValue = null;
-      this._toggleCell(e);
+      if (e.button === 1 || (e.button === 0 && e.ctrlKey)) {
+        e.preventDefault();
+        this._isPanning = true;
+        this._panStart = { x: e.clientX - this.panX, y: e.clientY - this.panY };
+        this.canvas.style.cursor = 'grab';
+      } else if (e.button === 0) {
+        this._dragValue = null;
+        this._toggleCell(e);
+      }
     });
     this.canvas.addEventListener('mousemove', (e) => {
-      if (e.buttons === 1) this._toggleCell(e);
+      if (this._isPanning && (e.buttons === 4 || (e.buttons === 1 && e.ctrlKey))) {
+        this.panX = e.clientX - this._panStart.x;
+        this.panY = e.clientY - this._panStart.y;
+        this._render();
+      } else if (e.buttons === 1 && !e.ctrlKey) {
+        this._toggleCell(e);
+      }
     });
-    this.canvas.addEventListener('mouseup', () => {
-      this._dragValue = null;
+    this.canvas.addEventListener('mouseup', (e) => {
+      if (e.button === 1 || (e.button === 0 && this._isPanning)) {
+        this._isPanning = false;
+        this._panStart = null;
+        this.canvas.style.cursor = 'crosshair';
+      } else {
+        this._dragValue = null;
+      }
+    });
+
+    // Zoom – mouse wheel
+    this.canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const rect = this.canvas.getBoundingClientRect();
+      const scaleX = this.canvas.width  / rect.width;
+      const scaleY = this.canvas.height / rect.height;
+      const mouseX = (e.clientX - rect.left) * scaleX;
+      const mouseY = (e.clientY - rect.top)  * scaleY;
+      const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+      const newZoom = Math.max(0.5, Math.min(20, this.zoom * factor));
+      this.panX = mouseX - (mouseX - this.panX) * (newZoom / this.zoom);
+      this.panY = mouseY - (mouseY - this.panY) * (newZoom / this.zoom);
+      this.zoom = newZoom;
+      this._render();
+    }, { passive: false });
+
+    // Reset view – double-click
+    this.canvas.addEventListener('dblclick', () => {
+      this.zoom = 1;
+      this.panX = 0;
+      this.panY = 0;
+      this._render();
     });
 
     // Touch support
@@ -353,17 +420,20 @@ class GameOfLife {
       this.reset();
     });
 
-    // Interval slider
+    // Interval slider + number input
     const slider = document.getElementById('sliderInterval');
-    const label  = document.getElementById('intervalValue');
-    slider.addEventListener('input', () => {
-      this.interval = parseInt(slider.value, 10);
-      label.textContent = `${this.interval} ms`;
+    const intervalInput = document.getElementById('intervalInput');
+    const syncInterval = (value) => {
+      this.interval = Math.max(50, Math.min(2000, parseInt(value, 10) || 200));
+      slider.value = this.interval;
+      intervalInput.value = this.interval;
       if (this.isPlaying) {
         this.pause();
         this.play();
       }
-    });
+    };
+    slider.addEventListener('input', () => syncInterval(slider.value));
+    intervalInput.addEventListener('change', () => syncInterval(intervalInput.value));
 
     // Color pickers
     document.getElementById('colorAlive').addEventListener('input', (e) => {
@@ -390,6 +460,14 @@ class GameOfLife {
       this._resizeGrid(w, h);
       this._resizeCanvas();
       this._updateStats();
+    });
+
+    // Reset view button
+    document.getElementById('btnResetView').addEventListener('click', () => {
+      this.zoom = 1;
+      this.panX = 0;
+      this.panY = 0;
+      this._render();
     });
 
     // Predefined patterns

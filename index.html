@@ -13,9 +13,11 @@
     </header>
 
     <main>
-      <canvas id="canvas"></canvas>
+      <div id="canvas-wrapper">
+        <canvas id="canvas"></canvas>
+      </div>
 
-      <aside id="controls">
+      <div id="controls">
 
         <!-- Grid size -->
         <section class="control-group">
@@ -42,7 +44,8 @@
           <div class="input-row">
             <label for="sliderInterval">Vitesse</label>
             <input type="range" id="sliderInterval" min="50" max="2000" step="50" value="200" />
-            <span id="intervalValue">200 ms</span>
+            <input type="number" id="intervalInput" min="50" max="2000" step="50" value="200" />
+            <span>ms</span>
           </div>
         </section>
 
@@ -74,6 +77,15 @@
           </div>
         </section>
 
+        <!-- View -->
+        <section class="control-group">
+          <h2>Vue</h2>
+          <p class="hint">Molette : zoom</p>
+          <p class="hint">Clic milieu / Ctrl+drag : déplacer</p>
+          <p class="hint">Double-clic : réinitialiser</p>
+          <button id="btnResetView">⌖ Réinitialiser vue</button>
+        </section>
+
         <!-- Stats -->
         <section class="control-group" id="stats">
           <h2>Informations</h2>
@@ -81,7 +93,7 @@
           <p>Cellules vivantes : <strong id="aliveCount">0</strong></p>
         </section>
 
-      </aside>
+      </div>
     </main>
   </div>
 

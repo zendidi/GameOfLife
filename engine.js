@@ -73,6 +73,7 @@ class SimulationEngine extends EventTarget {
     if (data.type === 'ready') {
       this._workerReady = true;
       this._workerBusy  = false;
+      this._resumeIfPending();
       this.dispatchEvent(new CustomEvent('ready'));
       return;
     }
@@ -82,6 +83,7 @@ class SimulationEngine extends EventTarget {
       this._ensureChannelSize();
       this._workerBusy  = false;
       this._workerReady = true;
+      this._resumeIfPending();
       this.dispatchEvent(new CustomEvent('ready'));
       return;
     }
@@ -138,6 +140,18 @@ class SimulationEngine extends EventTarget {
     this._pendingStep = false;
     this._workerBusy  = true;
     this._worker.postMessage({ type: 'step' });
+  }
+
+  /** Called when worker becomes available – resume a pending play loop. */
+  _resumeIfPending() {
+    if (this._running && this._pendingStep) {
+      this._pendingStep = false;
+      if (this.interval === 0) {
+        this._requestStep();
+      } else {
+        this._timerId = setTimeout(() => this._requestStep(), this.interval);
+      }
+    }
   }
 
   /* ── Grid management ─────────────────────────────────────────── */

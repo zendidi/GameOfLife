@@ -50,7 +50,14 @@ class GameOfLifeUI {
 
   _setupOffscreen() {
     const { cols, rows } = this.engine;
-    this._offscreen = new OffscreenCanvas(cols, rows);
+    if (typeof OffscreenCanvas !== 'undefined') {
+      this._offscreen = new OffscreenCanvas(cols, rows);
+    } else {
+      // Fallback: use an off-DOM regular canvas
+      this._offscreen = document.createElement('canvas');
+      this._offscreen.width  = cols;
+      this._offscreen.height = rows;
+    }
     this._octx      = this._offscreen.getContext('2d');
     this._imageData = this._octx.createImageData(cols, rows);
   }
@@ -59,8 +66,12 @@ class GameOfLifeUI {
     const loop = () => {
       if (this._needsRender) {
         this._needsRender = false;
-        this._render();
-        this._updateStats();
+        try {
+          this._render();
+          this._updateStats();
+        } catch (err) {
+          console.error('[GameOfLife] render error:', err);
+        }
       }
       requestAnimationFrame(loop);
     };
@@ -96,28 +107,44 @@ class GameOfLifeUI {
     }
     this._octx.putImageData(this._imageData, 0, 0);
 
-    /* Blit to main canvas with zoom/pan */
-    ctx.clearRect(0, 0, cw, ch);
-    ctx.save();
-    ctx.translate(this.panX, this.panY);
-    ctx.scale(this.zoom, this.zoom);
+    /* ── Square-cell layout ──────────────────────────────────────
+       cellSize = min(cw/cols, ch/rows) ensures cells are always square.
+       Pan and zoom are incorporated directly into the origin and cellSize
+       values (no canvas transform is applied).
+    ────────────────────────────────────────────────────────────── */
+    const baseCellSize = Math.min(cw / cols, ch / rows);
+    const cellSize     = baseCellSize * this.zoom;
+    const gridW        = cellSize * cols;
+    const gridH        = cellSize * rows;
+    const originX      = (cw - gridW) / 2 + this.panX;
+    const originY      = (ch - gridH) / 2 + this.panY;
+
+    /* Background (dead-cell color fills the whole canvas) */
+    ctx.fillStyle = `rgb(${colorDead[0]},${colorDead[1]},${colorDead[2]})`;
+    ctx.fillRect(0, 0, cw, ch);
+
+    /* Blit offscreen (scaled up to square cells) */
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(this._offscreen, 0, 0, cw, ch);
+    ctx.drawImage(this._offscreen, originX, originY, gridW, gridH);
 
     /* Grid lines only when cells are visually large enough */
-    const cellPxW = (cw / cols) * this.zoom;
-    const cellPxH = (ch / rows) * this.zoom;
-    if (cellPxW >= 4 && cellPxH >= 4) {
+    if (cellSize >= 4) {
       const [gr, gg, gb] = colorGrid;
       ctx.strokeStyle = `rgb(${gr},${gg},${gb})`;
-      ctx.lineWidth   = 0.5 / this.zoom;
+      ctx.lineWidth   = 0.5;
       ctx.beginPath();
-      const sw = cw / cols, sh = ch / rows;
-      for (let x = 0; x <= cols; x++) { const px = Math.round(x * sw); ctx.moveTo(px, 0); ctx.lineTo(px, ch); }
-      for (let y = 0; y <= rows; y++) { const py = Math.round(y * sh); ctx.moveTo(0, py); ctx.lineTo(cw, py); }
+      for (let x = 0; x <= cols; x++) {
+        const px = Math.round(originX + x * cellSize);
+        ctx.moveTo(px, originY);
+        ctx.lineTo(px, originY + gridH);
+      }
+      for (let y = 0; y <= rows; y++) {
+        const py = Math.round(originY + y * cellSize);
+        ctx.moveTo(originX, py);
+        ctx.lineTo(originX + gridW, py);
+      }
       ctx.stroke();
     }
-    ctx.restore();
   }
 
   /* ── Canvas resize ──────────────────────────────────────────── */
@@ -142,11 +169,16 @@ class GameOfLifeUI {
     const scaleY = this.canvas.height / rect.height;
     const cpx    = (clientX - rect.left) * scaleX;
     const cpy    = (clientY - rect.top)  * scaleY;
-    const wx     = (cpx - this.panX) / this.zoom;
-    const wy     = (cpy - this.panY) / this.zoom;
-    const cellW  = this.canvas.width  / this.engine.cols;
-    const cellH  = this.canvas.height / this.engine.rows;
-    return { x: Math.floor(wx / cellW), y: Math.floor(wy / cellH) };
+    const { cols, rows } = this.engine;
+    const cw = this.canvas.width, ch = this.canvas.height;
+    const baseCellSize = Math.min(cw / cols, ch / rows);
+    const cellSize     = baseCellSize * this.zoom;
+    const originX = (cw - cellSize * cols) / 2 + this.panX;
+    const originY = (ch - cellSize * rows) / 2 + this.panY;
+    return {
+      x: Math.floor((cpx - originX) / cellSize),
+      y: Math.floor((cpy - originY) / cellSize),
+    };
   }
 
   _toggleCell(evt) {
@@ -212,9 +244,17 @@ class GameOfLifeUI {
       const my     = (e.clientY - rect.top)  * scaleY;
       const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
       const nz     = Math.max(0.2, Math.min(40, this.zoom * factor));
-      this.panX = mx - (mx - this.panX) * (nz / this.zoom);
-      this.panY = my - (my - this.panY) * (nz / this.zoom);
-      this.zoom = nz;
+      if (nz <= 1) {
+        // Zoomed out to fit: center the grid
+        this.zoom = nz;
+        this.panX = 0;
+        this.panY = 0;
+      } else {
+        // Zoom around the mouse position: keep the cell under the cursor fixed
+        this.panX = mx - (mx - this.panX) * (nz / this.zoom);
+        this.panY = my - (my - this.panY) * (nz / this.zoom);
+        this.zoom = nz;
+      }
       this._needsRender = true;
     }, { passive: false });
 

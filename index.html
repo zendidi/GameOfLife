@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Conway's Game of Life</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>Conway's Game of Life</h1>
+    </header>
+
+    <main>
+      <canvas id="canvas"></canvas>
+
+      <aside id="controls">
+
+        <!-- Grid size -->
+        <section class="control-group">
+          <h2>Grille</h2>
+          <div class="input-row">
+            <label for="gridWidth">Largeur</label>
+            <input type="number" id="gridWidth" min="2" max="250" value="50" />
+          </div>
+          <div class="input-row">
+            <label for="gridHeight">Hauteur</label>
+            <input type="number" id="gridHeight" min="2" max="250" value="50" />
+          </div>
+          <button id="btnApplyGrid">Appliquer</button>
+        </section>
+
+        <!-- Simulation controls -->
+        <section class="control-group">
+          <h2>Simulation</h2>
+          <div class="btn-row">
+            <button id="btnPlay">▶ Play</button>
+            <button id="btnStep">⏭ Step</button>
+            <button id="btnReset">⏹ Reset</button>
+          </div>
+          <div class="input-row">
+            <label for="sliderInterval">Vitesse</label>
+            <input type="range" id="sliderInterval" min="50" max="2000" step="50" value="200" />
+            <span id="intervalValue">200 ms</span>
+          </div>
+        </section>
+
+        <!-- Colors -->
+        <section class="control-group">
+          <h2>Couleurs</h2>
+          <div class="input-row">
+            <label for="colorAlive">Cellule vivante</label>
+            <input type="color" id="colorAlive" value="#4ade80" />
+          </div>
+          <div class="input-row">
+            <label for="colorDead">Cellule morte</label>
+            <input type="color" id="colorDead" value="#1e1e2e" />
+          </div>
+          <div class="input-row">
+            <label for="colorGrid">Grille</label>
+            <input type="color" id="colorGrid" value="#2d2d44" />
+          </div>
+        </section>
+
+        <!-- Predefined patterns -->
+        <section class="control-group">
+          <h2>Motifs</h2>
+          <div class="btn-col">
+            <button class="btn-pattern" data-pattern="glider">Glider</button>
+            <button class="btn-pattern" data-pattern="blinker">Blinker</button>
+            <button class="btn-pattern" data-pattern="pulsar">Pulsar</button>
+            <button class="btn-pattern" data-pattern="gosper">Gosper Glider Gun</button>
+          </div>
+        </section>
+
+        <!-- Stats -->
+        <section class="control-group" id="stats">
+          <h2>Informations</h2>
+          <p>Génération : <strong id="generation">0</strong></p>
+          <p>Cellules vivantes : <strong id="aliveCount">0</strong></p>
+        </section>
+
+      </aside>
+    </main>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>

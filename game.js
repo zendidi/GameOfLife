@@ -44,22 +44,28 @@ class GameOfLifeUI {
     this._bindEvents();
     this._bindRulesPanel();
     this._startRenderLoop();
+
+    /* Safety net: set up canvas immediately on first animation frame so
+       the grid is visible even if the worker 'ready' event is delayed.
+       This also covers browsers where the worker may fail silently. */
+    requestAnimationFrame(() => {
+      if (!this._imageData) this._setupOffscreen();
+      this._resizeCanvas();
+    });
   }
 
   /* ── Rendering ──────────────────────────────────────────────── */
 
   _setupOffscreen() {
     const { cols, rows } = this.engine;
-    if (typeof OffscreenCanvas !== 'undefined') {
-      this._offscreen = new OffscreenCanvas(cols, rows);
-    } else {
-      // Fallback: use an off-DOM regular canvas
-      this._offscreen = document.createElement('canvas');
-      this._offscreen.width  = cols;
-      this._offscreen.height = rows;
-    }
-    this._octx      = this._offscreen.getContext('2d');
-    this._imageData = this._octx.createImageData(cols, rows);
+    // Use a regular off-DOM canvas for maximum browser compatibility.
+    // OffscreenCanvas.getContext('2d') can return null in some environments,
+    // which would silently break all rendering.
+    this._offscreen        = document.createElement('canvas');
+    this._offscreen.width  = cols;
+    this._offscreen.height = rows;
+    this._octx             = this._offscreen.getContext('2d');
+    this._imageData        = this._octx.createImageData(cols, rows);
   }
 
   _startRenderLoop() {
@@ -108,16 +114,20 @@ class GameOfLifeUI {
     this._octx.putImageData(this._imageData, 0, 0);
 
     /* ── Square-cell layout ──────────────────────────────────────
-       cellSize = min(cw/cols, ch/rows) ensures cells are always square.
-       Pan and zoom are incorporated directly into the origin and cellSize
-       values (no canvas transform is applied).
+       cellSize = floor(min(cw/cols, ch/rows)) ensures integer-pixel
+       square cells at zoom=1. The grid is centered in the canvas.
+       Pan and zoom are incorporated into the origin/cellSize values.
     ────────────────────────────────────────────────────────────── */
-    const baseCellSize = Math.min(cw / cols, ch / rows);
-    const cellSize     = baseCellSize * this.zoom;
-    const gridW        = cellSize * cols;
-    const gridH        = cellSize * rows;
-    const originX      = (cw - gridW) / 2 + this.panX;
-    const originY      = (ch - gridH) / 2 + this.panY;
+    const rawCell   = Math.min(cw / cols, ch / rows);
+    const baseCell  = Math.max(1, Math.floor(rawCell));   // integer, ≥ 1
+    const cellSize  = baseCell * this.zoom;
+    const gridW     = cellSize * cols;
+    const gridH     = cellSize * rows;
+    const originX   = (cw - gridW) / 2 + this.panX;
+    const originY   = (ch - gridH) / 2 + this.panY;
+
+    /* Safety: skip if grid has no area (canvas not yet sized) */
+    if (gridW <= 0 || gridH <= 0) return;
 
     /* Background (dead-cell color fills the whole canvas) */
     ctx.fillStyle = `rgb(${colorDead[0]},${colorDead[1]},${colorDead[2]})`;
@@ -127,11 +137,11 @@ class GameOfLifeUI {
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(this._offscreen, originX, originY, gridW, gridH);
 
-    /* Grid lines only when cells are visually large enough */
-    if (cellSize >= 4) {
+    /* Grid lines when cells are large enough to see them (≥ 2 px) */
+    if (cellSize >= 2) {
       const [gr, gg, gb] = colorGrid;
       ctx.strokeStyle = `rgb(${gr},${gg},${gb})`;
-      ctx.lineWidth   = 0.5;
+      ctx.lineWidth   = 1;
       ctx.beginPath();
       for (let x = 0; x <= cols; x++) {
         const px = Math.round(originX + x * cellSize);

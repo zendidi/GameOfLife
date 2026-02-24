@@ -142,15 +142,20 @@ class SimulationEngine extends EventTarget {
     this._worker.postMessage({ type: 'step' });
   }
 
-  /** Called when worker becomes available – resume a pending play loop. */
+  /** Called when worker becomes available – resume any pending step. */
   _resumeIfPending() {
-    if (this._running && this._pendingStep) {
-      this._pendingStep = false;
+    if (!this._pendingStep) return;
+    this._pendingStep = false;
+    if (this._running) {
+      /* Resume the play loop with the configured interval */
       if (this.interval === 0) {
         this._requestStep();
       } else {
         this._timerId = setTimeout(() => this._requestStep(), this.interval);
       }
+    } else {
+      /* A manual step was deferred while the worker was busy/not ready */
+      this._requestStep();
     }
   }
 

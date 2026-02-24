@@ -388,11 +388,19 @@ class GameOfLifeUI {
     this._needsRender = true;
   }
 
+  _showError(msg) {
+    const el = document.getElementById('rule-error');
+    el.textContent = msg;
+    el.style.display = 'block';
+    clearTimeout(this._errorTimer);
+    this._errorTimer = setTimeout(() => { el.style.display = 'none'; }, 5000);
+  }
+
   _addCustomRule() {
     const type = document.getElementById('ruleType').value;
     const name = document.getElementById('ruleName').value.trim() || `custom_${Date.now()}`;
     const code = document.getElementById('ruleCode').value.trim();
-    if (!code) { alert('Veuillez entrer le code de la règle.'); return; }
+    if (!code) { this._showError('Veuillez entrer le code de la règle.'); return; }
     try {
       let fn;
       if (type === 'transition') {
@@ -410,7 +418,7 @@ class GameOfLifeUI {
       this._refreshRulesList();
       this._needsRender = true;
     } catch (err) {
-      alert(`Erreur dans la règle :\n${err.message}`);
+      this._showError(`Erreur : ${err.message}`);
     }
   }
 

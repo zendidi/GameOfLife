@@ -233,7 +233,9 @@ class SimulationEngine extends EventTarget {
 
   setCell(x, y, value) {
     const idx = y * this.cols + x;
+    const prev = this.state[idx];
     this.state[idx] = value ? 1 : 0;
+    this.aliveCount += this.state[idx] - prev;
     this._worker.postMessage({ type: 'setCell', idx, value: value ? 1 : 0 });
   }
 

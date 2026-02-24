@@ -167,9 +167,9 @@ const BUILTIN_RULES = {
           const r = channels.get('dnaR');
           const g = channels.get('dnaG');
           const b = channels.get('dnaB');
-          r[idx] = Math.min(255, r[idx] + (Math.random() * 40 - 10));
-          g[idx] = Math.min(255, g[idx] + (Math.random() * 40 - 10));
-          b[idx] = Math.min(255, b[idx] + (Math.random() * 40 - 10));
+          r[idx] = Math.max(0, Math.min(255, r[idx] + (Math.random() * 40 - 10)));
+          g[idx] = Math.max(0, Math.min(255, g[idx] + (Math.random() * 40 - 10)));
+          b[idx] = Math.max(0, Math.min(255, b[idx] + (Math.random() * 40 - 10)));
         }
       },
     },

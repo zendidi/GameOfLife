@@ -362,6 +362,17 @@ button:active {
   border-color: #5080d0;
 }
 
+/* Rule error message */
+.rule-error {
+  margin-top: 0.3rem;
+  padding: 0.3rem 0.5rem;
+  background: #3a1010;
+  border: 1px solid #8a3030;
+  border-radius: 4px;
+  color: #ffaaaa;
+  font-size: 0.75rem;
+}
+
 /* Stats */
 #stats p {
   font-size: 0.82rem;

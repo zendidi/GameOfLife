@@ -236,6 +236,132 @@ button:active {
   padding: 0.3rem 0.6rem;
 }
 
+/* ===========================
+   Rules & Effects panel
+=========================== */
+#rules-panel {
+  min-width: 260px;
+  max-width: 340px;
+}
+
+.rules-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #5c5c88;
+  margin-bottom: 0.35rem;
+}
+
+.rules-presets, .rules-active, .rules-editor {
+  margin-bottom: 0.7rem;
+}
+
+/* Preset toggle buttons */
+.presets-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.btn-preset {
+  font-size: 0.78rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  border: 1px solid #3a3a5c;
+  background: #1e1e2e;
+  color: #9090c0;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.btn-preset:hover {
+  background: #2a2a42;
+  border-color: #6060a0;
+  color: #d0d0f0;
+}
+
+.btn-preset.preset-active {
+  background: #1e3060;
+  border-color: #5080d0;
+  color: #a0c8ff;
+  box-shadow: 0 0 6px rgba(80, 128, 208, 0.35);
+}
+
+/* Active rules list */
+#rules-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  max-height: 100px;
+  overflow-y: auto;
+}
+
+.rule-entry {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  color: #a0a0c8;
+  background: #141422;
+  border-radius: 4px;
+  padding: 0.15rem 0.4rem;
+}
+
+.rule-entry span {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.btn-rule-remove {
+  padding: 0 0.3rem;
+  font-size: 0.7rem;
+  border: none;
+  background: transparent;
+  color: #6060a0;
+  cursor: pointer;
+  line-height: 1.4;
+}
+
+.btn-rule-remove:hover {
+  color: #ff8080;
+  background: transparent;
+}
+
+/* Custom rule editor */
+.rules-editor select,
+.rules-editor input[type="text"] {
+  padding: 0.2rem 0.4rem;
+  background: #0f0f1a;
+  border: 1px solid #3a3a5c;
+  border-radius: 4px;
+  color: #e0e0f0;
+  font-size: 0.8rem;
+}
+
+.rules-editor select {
+  flex: 1;
+}
+
+#ruleCode {
+  width: 100%;
+  resize: vertical;
+  background: #0a0a14;
+  border: 1px solid #2a2a50;
+  border-radius: 4px;
+  color: #b0e0ff;
+  font-family: 'Consolas', 'Fira Code', monospace;
+  font-size: 0.75rem;
+  padding: 0.4rem 0.5rem;
+  line-height: 1.5;
+}
+
+#ruleCode:focus {
+  outline: none;
+  border-color: #5080d0;
+}
+
 /* Stats */
 #stats p {
   font-size: 0.82rem;

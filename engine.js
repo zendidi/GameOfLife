@@ -59,7 +59,107 @@ class SimulationEngine extends EventTarget {
   /* ── Worker ─────────────────────────────────────────────────── */
 
   _initWorker() {
-    this._worker = new Worker('worker.js');
+    /* ── Inline Blob worker ──────────────────────────────────────────
+       Browsers block `new Worker('worker.js')` when the page is opened
+       directly from disk (file:// origin = null), throwing a SecurityError
+       in both Firefox and Chrome/Edge.  Building the worker from a Blob URL
+       avoids any cross-origin file load and works for both file:// and http://.
+    ──────────────────────────────────────────────────────────────── */
+    const WORKER_SRC = `'use strict';
+let cols = 0, rows = 0, size = 0;
+let cur = null;
+let nxt = null;
+let changeBuf = null;
+
+function _allocate(c, r) {
+  cols = c; rows = r; size = c * r;
+  nxt = new Uint8Array(size);
+  changeBuf = new Uint32Array(size);
+}
+
+function _step() {
+  let cc = 0;
+  for (let y = 0; y < rows; y++) {
+    const ym = y - 1, yp = y + 1;
+    const hasYm = ym >= 0, hasYp = yp < rows;
+    for (let x = 0; x < cols; x++) {
+      const idx = y * cols + x;
+      const xm = x - 1, xp = x + 1;
+      const hasXm = xm >= 0, hasXp = xp < cols;
+      let n = 0;
+      if (hasYm) {
+        const row = ym * cols;
+        if (hasXm) n += cur[row + xm];
+        n += cur[row + x];
+        if (hasXp) n += cur[row + xp];
+      }
+      if (hasXm) n += cur[idx - 1];
+      if (hasXp) n += cur[idx + 1];
+      if (hasYp) {
+        const row = yp * cols;
+        if (hasXm) n += cur[row + xm];
+        n += cur[row + x];
+        if (hasXp) n += cur[row + xp];
+      }
+      const alive = cur[idx];
+      const next  = alive ? (n === 2 || n === 3 ? 1 : 0) : (n === 3 ? 1 : 0);
+      nxt[idx] = next;
+      if (next !== alive) changeBuf[cc++] = idx;
+    }
+  }
+  const tmp = cur; cur = nxt; nxt = tmp;
+  return cc;
+}
+
+self.onmessage = function ({ data }) {
+  switch (data.type) {
+    case 'init':
+      _allocate(data.cols, data.rows);
+      cur = new Uint8Array(data.state);
+      self.postMessage({ type: 'ready' });
+      break;
+
+    case 'resize': {
+      const nc = data.cols, nr = data.rows;
+      const newCur = new Uint8Array(nc * nr);
+      if (cur) {
+        const mc = Math.min(cols, nc), mr = Math.min(rows, nr);
+        for (let y = 0; y < mr; y++)
+          for (let x = 0; x < mc; x++)
+            newCur[y * nc + x] = cur[y * cols + x];
+      }
+      _allocate(nc, nr);
+      cur = newCur;
+      const snapshot = cur.slice();
+      self.postMessage({ type: 'resized', state: snapshot }, [snapshot.buffer]);
+      break;
+    }
+
+    case 'setState':
+      cur.set(new Uint8Array(data.state));
+      break;
+
+    case 'setCell':
+      if (data.idx >= 0 && data.idx < size) cur[data.idx] = data.value;
+      break;
+
+    case 'step': {
+      const cc = _step();
+      const stateCopy   = cur.slice();
+      const changesCopy = changeBuf.slice(0, cc);
+      self.postMessage(
+        { type: 'result', state: stateCopy, changes: changesCopy },
+        [stateCopy.buffer, changesCopy.buffer]
+      );
+      break;
+    }
+  }
+};`;
+
+    const blob = new Blob([WORKER_SRC], { type: 'text/javascript' });
+    const url  = URL.createObjectURL(blob);
+    this._worker = new Worker(url);
+    URL.revokeObjectURL(url); // safe to revoke once the Worker has been constructed
     this._worker.onmessage = (e) => this._onWorkerMessage(e.data);
     this._worker.postMessage({
       type: 'init',

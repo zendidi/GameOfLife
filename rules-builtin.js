@@ -108,23 +108,24 @@ const BUILTIN_RULES = {
   },
 
   /* ── 🎨 Chrono-RGB ──────────────────────────────────────────── */
-  /* Each time a cell is born it permanently accumulates a colour
-     offset.  Which channel (R, G or B) is boosted rotates every
-     generation: gen%3==0 → R, gen%3==1 → G, gen%3==2 → B.
-     The colour adds on top of the default alive colour so cells
-     gradually drift from green toward white as they accumulate
-     history across all three channels.                           */
+  /* Each time a cell *dies* it permanently accumulates a colour
+     offset on that cell's dead surface.  Which channel (R, G, B)
+     rotates every generation: gen%3==0 → R, gen%3==1 → G,
+     gen%3==2 → B.  The graveyard slowly fills with coloured
+     records of every death event.  Alive cells are rendered with
+     the plain alive colour so the history only shows on the dead
+     background.                                                   */
   chronoRgb: (() => {
     let gen = 0;
     return {
       label: '🎨 Chrono-RGB',
-      description: 'Les naissances accumulent une teinte permanente (R→G→B) qui tourne à chaque génération.',
+      description: 'Les morts accumulent une teinte permanente (R→G→B cyclique) – le cimetière se colore génération après génération.',
       channels: ['cR', 'cG', 'cB'],
 
       transition: {
         name: 'chronoRgb:transition',
         fn(idx, x, y, newAlive, channels, cols, rows) {
-          if (!newAlive) return;
+          if (newAlive) return; // only on death
           const keys = ['cR', 'cG', 'cB'];
           const ch = channels.get(keys[gen % 3]);
           if (ch) ch[idx] = Math.min(255, ch[idx] + 20);
@@ -141,17 +142,103 @@ const BUILTIN_RULES = {
       color: {
         name: 'chronoRgb:color',
         fn(idx, alive, channels, cols, rows) {
-          if (!alive) return [30, 30, 46];
-          // Base alive colour (74, 222, 128) + permanent accumulated offsets
+          if (alive) return [74, 222, 128]; // plain alive colour
+          // Dead cell: show accumulated colour offsets on dark background
+          const r = channels.get('cR')[idx];
+          const g = channels.get('cG')[idx];
+          const b = channels.get('cB')[idx];
+          if (r + g + b < 1) return [30, 30, 46]; // untouched
           return [
-            Math.min(255, 74  + channels.get('cR')[idx]),
-            Math.min(255, 222 + channels.get('cG')[idx]),
-            Math.min(255, 128 + channels.get('cB')[idx]),
+            Math.min(255, Math.round(r)),
+            Math.min(255, Math.round(g)),
+            Math.min(255, Math.round(b)),
           ];
         },
       },
     };
   })(),
+
+  /* ── 🗺️ Sédimentation ───────────────────────────────────────── */
+  /* Every death permanently increments a cell's sediment counter.
+     Dead cells are rendered on a cold→warm spectrum based on how
+     many times they have ever died: rarely-visited → deep blue,
+     frequently-toggled → bright orange/yellow.  Alive cells stay
+     white to contrast against the heat-map background.           */
+  sedimentation: {
+    label: '🗺️ Sédimentation',
+    description: 'Chaque mort laisse un dépôt permanent. Les zones actives chauffent du bleu au jaune.',
+    channels: ['sediment'],
+
+    transition: {
+      name: 'sedimentation:transition',
+      fn(idx, x, y, newAlive, channels, cols, rows) {
+        if (!newAlive) channels.get('sediment')[idx]++;
+      },
+    },
+
+    color: {
+      name: 'sedimentation:color',
+      fn(idx, alive, channels, cols, rows) {
+        if (alive) return [230, 255, 230]; // bright white-green for living cells
+        const t = Math.min(1, channels.get('sediment')[idx] / 40);
+        // cold (deep blue) → warm (bright orange-yellow)
+        return [
+          Math.round(10  + t * 245),
+          Math.round(10  + t * 165),
+          Math.round(100 - t * 80),
+        ];
+      },
+    },
+  },
+
+  /* ── 🔵 Contour ─────────────────────────────────────────────── */
+  /* Each step detects cells that sit on the boundary between life
+     and death.  An alive cell is "edge" if it has at least one
+     dead neighbour; a dead cell is "edge" if it has at least one
+     alive neighbour.  Edge-alive cells glow cyan; edge-dead cells
+     glow violet; interior cells are nearly invisible.  The result
+     looks like glowing circuit-board outlines.                   */
+  contour: {
+    label: '🔵 Contour',
+    description: 'Illumine les frontières vie/mort en cyan et violet – rendu circuit imprimé.',
+    channels: ['edge'],
+
+    step: {
+      name: 'contour:step',
+      fn(state, channels, cols, rows) {
+        const edge = channels.get('edge');
+        for (let y = 0; y < rows; y++) {
+          for (let x = 0; x < cols; x++) {
+            const idx = y * cols + x;
+            let aliveN = 0, totalN = 0;
+            for (let dy = -1; dy <= 1; dy++) {
+              for (let dx = -1; dx <= 1; dx++) {
+                if (dx === 0 && dy === 0) continue;
+                const ny = y + dy, nx = x + dx;
+                if (ny >= 0 && ny < rows && nx >= 0 && nx < cols) {
+                  totalN++;
+                  aliveN += state[ny * cols + nx];
+                }
+              }
+            }
+            const alive = state[idx];
+            edge[idx] = alive
+              ? (aliveN < totalN ? 1 : 0)   // alive edge: at least 1 dead neighbour
+              : (aliveN > 0     ? 1 : 0);    // dead  edge: at least 1 alive neighbour
+          }
+        }
+      },
+    },
+
+    color: {
+      name: 'contour:color',
+      fn(idx, alive, channels, cols, rows) {
+        const e = channels.get('edge')[idx];
+        if (alive)  return e ? [100, 240, 255] : [15, 50, 15]; // cyan | dark green
+        return      e ? [160,  40, 200] : [10, 10, 18];         // violet | near-black
+      },
+    },
+  },
 
   /* ── 🌐 Carte infinie ───────────────────────────────────────── */
   /* Enables toroidal (wrap-around) topology: cells at the right

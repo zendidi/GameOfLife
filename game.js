@@ -181,7 +181,7 @@ class GameOfLifeUI {
     const cpy    = (clientY - rect.top)  * scaleY;
     const { cols, rows } = this.engine;
     const cw = this.canvas.width, ch = this.canvas.height;
-    const baseCellSize = Math.min(cw / cols, ch / rows);
+    const baseCellSize = Math.max(1, Math.floor(Math.min(cw / cols, ch / rows)));
     const cellSize     = baseCellSize * this.zoom;
     const originX = (cw - cellSize * cols) / 2 + this.panX;
     const originY = (ch - cellSize * rows) / 2 + this.panY;
@@ -424,6 +424,7 @@ class GameOfLifeUI {
     if (preset.transition) this.engine.addTransitionRule(preset.transition.name, preset.transition.fn);
     if (preset.step)       this.engine.addStepRule(preset.step.name, preset.step.fn);
     if (preset.color)      this.engine.setColorRule(preset.color.name, preset.color.fn);
+    if (preset.onActivate) preset.onActivate(this.engine);
     this._activePresets.add(name);
     this._needsRender = true;
   }
@@ -434,6 +435,7 @@ class GameOfLifeUI {
     if (preset.transition) this.engine.removeTransitionRule(preset.transition.name);
     if (preset.step)       this.engine.removeStepRule(preset.step.name);
     if (preset.color && this.engine.colorRuleName === preset.color.name) this.engine.clearColorRule();
+    if (preset.onDeactivate) preset.onDeactivate(this.engine);
     this._activePresets.delete(name);
     this._needsRender = true;
   }

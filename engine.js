@@ -70,6 +70,7 @@ let cols = 0, rows = 0, size = 0;
 let cur = null;
 let nxt = null;
 let changeBuf = null;
+let wrapEdges = false;
 
 function _allocate(c, r) {
   cols = c; rows = r; size = c * r;
@@ -80,12 +81,16 @@ function _allocate(c, r) {
 function _step() {
   let cc = 0;
   for (let y = 0; y < rows; y++) {
-    const ym = y - 1, yp = y + 1;
-    const hasYm = ym >= 0, hasYp = yp < rows;
+    const ym = wrapEdges ? (y === 0 ? rows - 1 : y - 1) : y - 1;
+    const yp = wrapEdges ? (y === rows - 1 ? 0 : y + 1) : y + 1;
+    const hasYm = ym >= 0;
+    const hasYp = yp < rows;
     for (let x = 0; x < cols; x++) {
       const idx = y * cols + x;
-      const xm = x - 1, xp = x + 1;
-      const hasXm = xm >= 0, hasXp = xp < cols;
+      const xm = wrapEdges ? (x === 0 ? cols - 1 : x - 1) : x - 1;
+      const xp = wrapEdges ? (x === cols - 1 ? 0 : x + 1) : x + 1;
+      const hasXm = xm >= 0;
+      const hasXp = xp < cols;
       let n = 0;
       if (hasYm) {
         const row = ym * cols;
@@ -93,8 +98,8 @@ function _step() {
         n += cur[row + x];
         if (hasXp) n += cur[row + xp];
       }
-      if (hasXm) n += cur[idx - 1];
-      if (hasXp) n += cur[idx + 1];
+      if (hasXm) n += cur[idx - x + xm];
+      if (hasXp) n += cur[idx - x + xp];
       if (hasYp) {
         const row = yp * cols;
         if (hasXm) n += cur[row + xm];
@@ -141,6 +146,10 @@ self.onmessage = function ({ data }) {
 
     case 'setCell':
       if (data.idx >= 0 && data.idx < size) cur[data.idx] = data.value;
+      break;
+
+    case 'setWrap':
+      wrapEdges = !!data.wrap;
       break;
 
     case 'step': {
@@ -382,6 +391,10 @@ self.onmessage = function ({ data }) {
     if (wasRunning) this.pause();
     this.interval = ms;
     if (wasRunning) this.play();
+  }
+
+  setWrapEdges(val) {
+    this._worker.postMessage({ type: 'setWrap', wrap: val });
   }
 
   get isPlaying() { return this._running; }

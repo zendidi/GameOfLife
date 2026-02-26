@@ -305,10 +305,17 @@ self.onmessage = function ({ data }) {
     const n = this.cols * this.rows;
     this.state = new Uint8Array(n);
     for (let i = 0; i < n; i++) this.state[i] = Math.random() < density ? 1 : 0;
-    this._clearChannels();
+    // Channels are intentionally NOT cleared so accumulated data persists.
     this.generation = 0;
     this.aliveCount = 0;
     for (let i = 0; i < n; i++) this.aliveCount += this.state[i];
+    this._worker.postMessage({ type: 'setState', state: this.state });
+    this.dispatchEvent(new CustomEvent('step'));
+  }
+
+  killCells() {
+    this.aliveCount = 0;
+    this.state = new Uint8Array(this.cols * this.rows);
     this._worker.postMessage({ type: 'setState', state: this.state });
     this.dispatchEvent(new CustomEvent('step'));
   }

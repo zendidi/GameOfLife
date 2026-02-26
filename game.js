@@ -300,6 +300,24 @@ class GameOfLifeUI {
       this.engine.reset();
     });
 
+    document.getElementById('btnKillCells').addEventListener('click', () => {
+      this.engine.killCells();
+    });
+
+    document.getElementById('btnSavePng').addEventListener('click', () => {
+      this.canvas.toBlob((blob) => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const a   = document.createElement('a');
+        a.href     = url;
+        a.download = `gameoflife-gen${this.engine.generation}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 'image/png');
+    });
+
     document.getElementById('btnRandom').addEventListener('click', () => {
       this.engine.pause(); setPlayUI(false);
       const density = parseFloat(document.getElementById('randomDensity').value) || 0.3;
@@ -360,7 +378,7 @@ class GameOfLifeUI {
   /* ── Predefined patterns ────────────────────────────────────── */
 
   _placePattern(cells) {
-    this.engine.reset();
+    this.engine.killCells();
     const xs = cells.map(([x]) => x), ys = cells.map(([, y]) => y);
     const minX = Math.min(...xs), maxX = Math.max(...xs);
     const minY = Math.min(...ys), maxY = Math.max(...ys);

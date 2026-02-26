@@ -25,6 +25,14 @@ class SimulationEngine extends EventTarget {
     /* Per-cell data channels: name → Float32Array(cols*rows) */
     this.channels = new Map();
 
+    /* Persistent per-cell colour memory – written by colour effects with
+       wrapping arithmetic, read by the default renderer for dead cells.
+       Survives preset changes, killCells() and randomize(); cleared only
+       by reset() so the GoL game cycle stays fully independent.         */
+    this.channels.set('cellR', new Float32Array(this.cols * this.rows));
+    this.channels.set('cellG', new Float32Array(this.cols * this.rows));
+    this.channels.set('cellB', new Float32Array(this.cols * this.rows));
+
     /* Rule registries */
     // fn(idx, x, y, newAlive, channels, cols, rows) → void
     this.transitionRules = new Map();

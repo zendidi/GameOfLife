@@ -95,6 +95,9 @@ class GameOfLifeUI {
 
     /* Fill ImageData – 1 pixel per cell */
     const pxData = this._imageData.data;
+    const cellRCh = channels.get('cellR');
+    const cellGCh = channels.get('cellG');
+    const cellBCh = channels.get('cellB');
     for (let i = 0, n = cols * rows; i < n; i++) {
       const alive = state[i];
       let r, g, b;
@@ -103,7 +106,14 @@ class GameOfLifeUI {
       } else if (alive) {
         [r, g, b] = colorAlive;
       } else {
-        [r, g, b] = colorDead;
+        /* Dead cell: show accumulated per-cell colour memory if any colour has
+           been written; otherwise fall back to the default dead-cell colour.  */
+        const cr = cellRCh ? cellRCh[i] : 0;
+        const cg = cellGCh ? cellGCh[i] : 0;
+        const cb = cellBCh ? cellBCh[i] : 0;
+        [r, g, b] = (cr + cg + cb > 0.5) // > 0.5 distinguishes "has colour" from Float32 zero
+          ? [Math.round(cr), Math.round(cg), Math.round(cb)]
+          : colorDead;
       }
       const p = i << 2;
       pxData[p]     = r;

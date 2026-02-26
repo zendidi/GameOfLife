@@ -59,45 +59,37 @@ const BUILTIN_RULES = {
   dna: {
     label: '🧬 ADN',
     description: 'Chaque naissance mute légèrement les couleurs RGB de la cellule.',
-    channels: ['dnaR', 'dnaG', 'dnaB'],
+    channels: [],
 
     transition: {
       name: 'dna:transition',
       fn(idx, x, y, newAlive, channels, cols, rows) {
         if (newAlive) {
-          const r = channels.get('dnaR');
-          const g = channels.get('dnaG');
-          const b = channels.get('dnaB');
-          r[idx] = Math.max(0, Math.min(255, r[idx] + (Math.random() * 40 - 10)));
-          g[idx] = Math.max(0, Math.min(255, g[idx] + (Math.random() * 40 - 10)));
-          b[idx] = Math.max(0, Math.min(255, b[idx] + (Math.random() * 40 - 10)));
+          const r = channels.get('cellR');
+          const g = channels.get('cellG');
+          const b = channels.get('cellB');
+          // Wrapping modulo 256 so mutations cycle through the colour wheel
+          if (r) r[idx] = ((r[idx] + Math.random() * 40 - 10) % 256 + 256) % 256;
+          if (g) g[idx] = ((g[idx] + Math.random() * 40 - 10) % 256 + 256) % 256;
+          if (b) b[idx] = ((b[idx] + Math.random() * 40 - 10) % 256 + 256) % 256;
         }
       },
     },
 
-    step: {
-      name: 'dna:step',
-      fn(state, channels, cols, rows) {
-        const r = channels.get('dnaR');
-        const g = channels.get('dnaG');
-        const b = channels.get('dnaB');
-        for (let i = 0, n = state.length; i < n; i++) {
-          if (!state[i]) {
-            r[i] *= 0.98; g[i] *= 0.98; b[i] *= 0.98;
-          }
-        }
-      },
-    },
+    // No step rule – colour mutations are permanent (no fade-out).
 
     color: {
       name: 'dna:color',
       fn(idx, alive, channels, cols, rows) {
-        if (!alive) return [30, 30, 46];
-        const rv = channels.get('dnaR')[idx];
-        const gv = channels.get('dnaG')[idx];
-        const bv = channels.get('dnaB')[idx];
+        const cellR = channels.get('cellR');
+        const cellG = channels.get('cellG');
+        const cellB = channels.get('cellB');
+        const rv = cellR ? cellR[idx] : 0;
+        const gv = cellG ? cellG[idx] : 0;
+        const bv = cellB ? cellB[idx] : 0;
+        if (!alive) return rv + gv + bv < 1 ? [30, 30, 46] : [rv, gv, bv];
+        // Alive: normalize + boost for vivid colours
         const total = rv + gv + bv || 1;
-        // Normalize + boost for vivid colours
         return [
           Math.min(255, Math.round(50 + (rv / total) * 400)),
           Math.min(255, Math.round(50 + (gv / total) * 400)),
@@ -109,26 +101,27 @@ const BUILTIN_RULES = {
 
   /* ── 🎨 Chrono-RGB ──────────────────────────────────────────── */
   /* Each time a cell *dies* it permanently accumulates a colour
-     offset on that cell's dead surface.  Which channel (R, G, B)
-     rotates every generation: gen%3==0 → R, gen%3==1 → G,
-     gen%3==2 → B.  The graveyard slowly fills with coloured
-     records of every death event.  Alive cells are rendered with
-     the plain alive colour so the history only shows on the dead
-     background.                                                   */
+     offset in the shared cell colour memory (cellR/cellG/cellB).
+     Which component (R, G, B) receives the increment rotates every
+     generation: gen%3==0 → R, gen%3==1 → G, gen%3==2 → B.
+     Values wrap around modulo 256 so they cycle continuously.
+     The default renderer reads cellR/cellG/cellB for dead cells, so
+     the graveyard remains visible even after switching to another
+     effect.  The GoL game cycle is completely independent.         */
   chronoRgb: (() => {
     let gen = 0;
     return {
       label: '🎨 Chrono-RGB',
       description: 'Les morts accumulent une teinte permanente (R→G→B cyclique) – le cimetière se colore génération après génération.',
-      channels: ['cR', 'cG', 'cB'],
+      channels: [],
 
       transition: {
         name: 'chronoRgb:transition',
         fn(idx, x, y, newAlive, channels, cols, rows) {
           if (newAlive) return; // only on death
-          const keys = ['cR', 'cG', 'cB'];
+          const keys = ['cellR', 'cellG', 'cellB'];
           const ch = channels.get(keys[gen % 3]);
-          if (ch) ch[idx] = Math.min(255, ch[idx] + 20);
+          if (ch) ch[idx] = (ch[idx] + 20) % 256;
         },
       },
 
@@ -139,22 +132,8 @@ const BUILTIN_RULES = {
         },
       },
 
-      color: {
-        name: 'chronoRgb:color',
-        fn(idx, alive, channels, cols, rows) {
-          if (alive) return [74, 222, 128]; // plain alive colour
-          // Dead cell: show accumulated colour offsets on dark background
-          const r = channels.get('cR')[idx];
-          const g = channels.get('cG')[idx];
-          const b = channels.get('cB')[idx];
-          if (r + g + b < 1) return [30, 30, 46]; // untouched
-          return [
-            Math.min(255, Math.round(r)),
-            Math.min(255, Math.round(g)),
-            Math.min(255, Math.round(b)),
-          ];
-        },
-      },
+      // No color rule – the default renderer displays cellR/cellG/cellB for
+      // dead cells, keeping the accumulated history visible at all times.
     };
   })(),
 

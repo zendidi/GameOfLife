@@ -39,31 +39,46 @@ header h1 {
 
 main {
   display: flex;
+  flex-direction: column;
   flex: 1;
   overflow: hidden;
 }
 
-/* Canvas fills remaining space */
-canvas {
+/* Canvas wrapper */
+#canvas-wrapper {
   flex: 1 1 0;
-  min-width: 0;
   min-height: 0;
+  position: relative;
+  margin: 0.5rem;
+  border: 2px solid #3a3a5c;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 0 12px rgba(108, 142, 191, 0.15);
+}
+
+/* Canvas fills its wrapper */
+canvas {
   display: block;
+  width: 100%;
+  height: 100%;
   cursor: crosshair;
   background: #1e1e2e;
 }
 
-/* Sidebar */
+/* Bottom controls bar */
 #controls {
-  width: 240px;
-  min-width: 200px;
+  flex: 0 0 auto;
   background: #16162a;
-  border-left: 1px solid #2d2d44;
+  border-top: 1px solid #2d2d44;
+  overflow-x: auto;
   overflow-y: auto;
-  padding: 0.8rem;
+  max-height: 38vh;
+  padding: 0.5rem 0.8rem;
   display: flex;
-  flex-direction: column;
-  gap: 0.8rem;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: flex-start;
 }
 
 /* ===========================
@@ -111,6 +126,7 @@ canvas {
 
 .input-row input[type="range"] {
   flex: 1;
+  min-width: 80px;
   accent-color: #6c8ebf;
   cursor: pointer;
 }
@@ -119,8 +135,6 @@ canvas {
   font-size: 0.75rem;
   color: #7878aa;
   white-space: nowrap;
-  min-width: 50px;
-  text-align: right;
 }
 
 .input-row input[type="color"] {
@@ -133,7 +147,13 @@ canvas {
   cursor: pointer;
 }
 
-/* Button rows */
+/* Hint text */
+.hint {
+  font-size: 0.72rem;
+  color: #5c5c88;
+  margin-bottom: 0.2rem;
+}
+
 .btn-row {
   display: flex;
   gap: 0.4rem;
@@ -216,6 +236,143 @@ button:active {
   padding: 0.3rem 0.6rem;
 }
 
+/* ===========================
+   Rules & Effects panel
+=========================== */
+#rules-panel {
+  min-width: 260px;
+  max-width: 340px;
+}
+
+.rules-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #5c5c88;
+  margin-bottom: 0.35rem;
+}
+
+.rules-presets, .rules-active, .rules-editor {
+  margin-bottom: 0.7rem;
+}
+
+/* Preset toggle buttons */
+.presets-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.btn-preset {
+  font-size: 0.78rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  border: 1px solid #3a3a5c;
+  background: #1e1e2e;
+  color: #9090c0;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.btn-preset:hover {
+  background: #2a2a42;
+  border-color: #6060a0;
+  color: #d0d0f0;
+}
+
+.btn-preset.preset-active {
+  background: #1e3060;
+  border-color: #5080d0;
+  color: #a0c8ff;
+  box-shadow: 0 0 6px rgba(80, 128, 208, 0.35);
+}
+
+/* Active rules list */
+#rules-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  max-height: 100px;
+  overflow-y: auto;
+}
+
+.rule-entry {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  color: #a0a0c8;
+  background: #141422;
+  border-radius: 4px;
+  padding: 0.15rem 0.4rem;
+}
+
+.rule-entry span {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.btn-rule-remove {
+  padding: 0 0.3rem;
+  font-size: 0.7rem;
+  border: none;
+  background: transparent;
+  color: #6060a0;
+  cursor: pointer;
+  line-height: 1.4;
+}
+
+.btn-rule-remove:hover {
+  color: #ff8080;
+  background: transparent;
+}
+
+/* Custom rule editor */
+.rules-editor select,
+.rules-editor input[type="text"] {
+  padding: 0.2rem 0.4rem;
+  background: #0f0f1a;
+  border: 1px solid #3a3a5c;
+  border-radius: 4px;
+  color: #e0e0f0;
+  font-size: 0.8rem;
+}
+
+.rules-editor select {
+  flex: 1;
+}
+
+#ruleCode {
+  width: 100%;
+  resize: vertical;
+  background: #0a0a14;
+  border: 1px solid #2a2a50;
+  border-radius: 4px;
+  color: #b0e0ff;
+  font-family: 'Consolas', 'Fira Code', monospace;
+  font-size: 0.75rem;
+  padding: 0.4rem 0.5rem;
+  line-height: 1.5;
+}
+
+#ruleCode:focus {
+  outline: none;
+  border-color: #5080d0;
+}
+
+/* Rule error message */
+.rule-error {
+  margin-top: 0.3rem;
+  padding: 0.3rem 0.5rem;
+  background: #3a1010;
+  border: 1px solid #8a3030;
+  border-radius: 4px;
+  color: #ffaaaa;
+  font-size: 0.75rem;
+}
+
 /* Stats */
 #stats p {
   font-size: 0.82rem;
@@ -231,22 +388,12 @@ button:active {
    Responsive – small screens
 =========================== */
 @media (max-width: 600px) {
-  main {
-    flex-direction: column;
-  }
-
-  canvas {
-    flex: none;
-    height: 60vw;
-    width: 100%;
+  #canvas-wrapper {
+    margin: 0.3rem;
   }
 
   #controls {
-    width: 100%;
-    border-left: none;
-    border-top: 1px solid #2d2d44;
-    flex-direction: row;
-    flex-wrap: wrap;
+    max-height: 50vh;
   }
 
   .control-group {
